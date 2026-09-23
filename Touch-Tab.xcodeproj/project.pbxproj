@@ -15,6 +15,7 @@
 		58D3F9F42A8E14C80021A532 /* PrivacyHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58D3F9F32A8E14C80021A532 /* PrivacyHelper.swift */; };
 		58DE49CA29D09BB70025BE44 /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58DE49C929D09BB70025BE44 /* AboutView.swift */; };
 		58FBBBE529D20D3600A15F66 /* BundleInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58FBBBE429D20D3600A15F66 /* BundleInfo.swift */; };
+		58A1C0012E00000100A1C001 /* Settings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58A1C0022E00000100A1C001 /* Settings.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -28,6 +29,7 @@
 		58D3F9F52A8E15E50021A532 /* Touch-Tab.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Touch-Tab.entitlements"; sourceTree = "<group>"; };
 		58DE49C929D09BB70025BE44 /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
 		58FBBBE429D20D3600A15F66 /* BundleInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BundleInfo.swift; sourceTree = "<group>"; };
+		58A1C0022E00000100A1C001 /* Settings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Settings.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -59,6 +61,7 @@
 				588922D329BB490400F7F843 /* AppSwitcher.swift */,
 				58DE49C929D09BB70025BE44 /* AboutView.swift */,
 				58D3F9F32A8E14C80021A532 /* PrivacyHelper.swift */,
+				58A1C0022E00000100A1C001 /* Settings.swift */,
 			);
 			path = "Touch-Tab";
 			sourceTree = "<group>";
@@ -139,6 +142,7 @@
 				58BC5B2F28B3C4C30013EAD3 /* main.swift in Sources */,
 				58DE49CA29D09BB70025BE44 /* AboutView.swift in Sources */,
 				58D3F9F42A8E14C80021A532 /* PrivacyHelper.swift in Sources */,
+				58A1C0012E00000100A1C001 /* Settings.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -267,7 +271,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 10;
+				CURRENT_PROJECT_VERSION = 11;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -280,7 +284,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.5.0;
+				MARKETING_VERSION = 1.6.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "ris58h.Touch-Tab";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -298,7 +302,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 10;
+				CURRENT_PROJECT_VERSION = 11;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -311,7 +315,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.5.0;
+				MARKETING_VERSION = 1.6.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "ris58h.Touch-Tab";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;

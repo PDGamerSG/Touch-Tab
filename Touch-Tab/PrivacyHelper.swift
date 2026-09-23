@@ -13,7 +13,7 @@ class PrivacyHelper {
     }
 
     private static func promptForAccessibilityPermissionFromSandbox() {
-        _ = CGEvent.tapCreate(
+        let eventTap = CGEvent.tapCreate(
             tap: .cghidEventTap,
             place: .headInsertEventTap,
             options: .defaultTap,
@@ -21,6 +21,11 @@ class PrivacyHelper {
             callback: dummyEventHandler,
             userInfo: nil
         )
+        // The tap is only needed to trigger the prompt. If permission has just been granted it must not stay alive.
+        if let eventTap = eventTap {
+            CGEvent.tapEnable(tap: eventTap, enable: false)
+            CFMachPortInvalidate(eventTap)
+        }
     }
 }
 
