@@ -11,7 +11,16 @@ permissions:
   contents: write
 
 jobs:
+  test:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unit tests
+        run: swift test
+
   build:
+    needs: test
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
@@ -29,6 +38,16 @@ jobs:
             CODE_SIGN_STYLE=Manual \
             DEVELOPMENT_TEAM= \
             build
+
+      - name: Smoke test
+        run: |
+          # The app must start and keep running without Accessibility permission.
+          APP=build/Release/Touch-Tab.app
+          "$APP/Contents/MacOS/Touch-Tab" &
+          PID=$!
+          sleep 10
+          kill -0 "$PID"
+          kill "$PID"
 
       - name: Package
         run: |

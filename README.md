@@ -46,7 +46,14 @@ Open `Touch-Tab.xcodeproj` in Xcode and run, or build from the command line:
 ```sh
 xcodebuild -project Touch-Tab.xcodeproj -target Touch-Tab -configuration Release SYMROOT="$PWD/build" CODE_SIGN_IDENTITY=- build
 ```
-The app is at `build/Release/Touch-Tab.app`. Every push is built by GitHub Actions, and pushing a `v*` tag publishes a release with `Touch-Tab.zip`.
+The app is at `build/Release/Touch-Tab.app`.
+
+## Testing
+The gesture recognition, key sequences and settings are covered by unit tests:
+```sh
+swift test
+```
+Every push runs the tests, builds a universal app and checks that it launches. Pushing a `v*` tag also publishes a release with `Touch-Tab.zip`.
 
 ## Changes in this fork
 - 3-finger swipe no longer scrolls the content under the cursor ([ris58h#1](https://github.com/ris58h/Touch-Tab/issues/1)).
