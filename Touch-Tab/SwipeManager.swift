@@ -5,23 +5,45 @@ class SwipeManager {
     // TODO: figure out the real value of the delay.
     private static let appSwitcherUIDelay: Double = 0.2
 
+    private static let eventsOfInterest: CGEventMask =
+        NSEvent.EventTypeMask.gesture.rawValue |
+        NSEvent.EventTypeMask.scrollWheel.rawValue |
+        NSEvent.EventTypeMask.swipe.rawValue
+
     private static var eventTap: CFMachPort? = nil
+    private static var runLoopSource: CFRunLoopSource? = nil
     // Event state.
     private static var accVelX: Float = 0
     private static var prevTouchPositions: [String: NSPoint] = [:]
     // Gesture state. Gesture may consists of multiple events.
     private static var startTime: Date? = nil
+    // Number of fingers currently touching the trackpad.
+    private static var touchesCount = 0
+    // Set when a scroll sequence was blocked so its momentum is blocked as well.
+    private static var isBlockingScroll = false
 
     //TODO: move it somewhere else?
     private static func listener(_ eventType: EventType) {
         switch eventType {
         case .startOrContinue(.left):
             AppSwitcher.cmdShiftTab()
+            performHapticFeedback()
         case .startOrContinue(.right):
             AppSwitcher.cmdTab()
+            performHapticFeedback()
         case .end:
             AppSwitcher.selectInAppSwitcher()
         }
+    }
+
+    private static func performHapticFeedback() {
+        if Settings.hapticFeedback {
+            NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now)
+        }
+    }
+
+    static var isRunning: Bool {
+        return eventTap != nil
     }
 
     static func start() {
@@ -34,75 +56,155 @@ class SwipeManager {
             tap: .cghidEventTap,
             place: .headInsertEventTap,
             options: .defaultTap,
-            eventsOfInterest: NSEvent.EventTypeMask.gesture.rawValue,
+            eventsOfInterest: eventsOfInterest,
             callback: { proxy, type, cgEvent, userInfo in
                 return SwipeManager.eventHandler(proxy: proxy, eventType: type, cgEvent: cgEvent, userInfo: userInfo)
             },
             userInfo: nil
         )
-        if eventTap == nil {
+        guard let eventTap = eventTap else {
             debugPrint("SwipeManager couldn't create event tap")
             return
         }
-        
-        let runLoopSource = CFMachPortCreateRunLoopSource(nil, eventTap, 0)
-        CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, CFRunLoopMode.commonModes)
-        CGEvent.tapEnable(tap: eventTap!, enable: true)
+
+        runLoopSource = CFMachPortCreateRunLoopSource(nil, eventTap, 0)
+        CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, CFRunLoopMode.commonModes)
+        CGEvent.tapEnable(tap: eventTap, enable: true)
     }
-    
+
+    static func stop() {
+        reset()
+        guard let tap = eventTap else {
+            return
+        }
+        debugPrint("SwipeManager stop")
+        CGEvent.tapEnable(tap: tap, enable: false)
+        if let runLoopSource = runLoopSource {
+            CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, CFRunLoopMode.commonModes)
+        }
+        CFMachPortInvalidate(tap)
+        runLoopSource = nil
+        eventTap = nil
+    }
+
+    static func restart() {
+        stop()
+        start()
+    }
+
+    // The event tap may silently die after sleep, user switching or permission changes. Recreate or re-enable it if needed.
+    static func ensureRunning() {
+        guard let tap = eventTap, CFMachPortIsValid(tap) else {
+            debugPrint("SwipeManager event tap is invalid, recreating")
+            restart()
+            return
+        }
+        if !CGEvent.tapIsEnabled(tap: tap) {
+            debugPrint("SwipeManager event tap is disabled, enabling")
+            CGEvent.tapEnable(tap: tap, enable: true)
+            if !CGEvent.tapIsEnabled(tap: tap) {
+                restart()
+            }
+        }
+    }
+
+    // Finishes the current gesture (if any) and forgets all the touches.
+    static func reset() {
+        if startTime != nil {
+            endGesture()
+        }
+        startTime = nil
+        touchesCount = 0
+        isBlockingScroll = false
+        clearEventState()
+    }
+
     private static func eventHandler(proxy: CGEventTapProxy, eventType: CGEventType, cgEvent: CGEvent, userInfo: UnsafeMutableRawPointer?) -> Unmanaged<CGEvent>? {
+        if eventType == .tapDisabledByUserInput || eventType == .tapDisabledByTimeout {
+            debugPrint("SwipeManager tap disabled", eventType.rawValue)
+            // Some touches may have been missed so start from scratch.
+            reset()
+            if let tap = eventTap {
+                CGEvent.tapEnable(tap: tap, enable: true)
+            }
+            return Unmanaged.passUnretained(cgEvent)
+        }
+
+        if eventType == .scrollWheel {
+            return shouldBlockScroll(cgEvent) ? nil : Unmanaged.passUnretained(cgEvent)
+        }
+
+        if eventType.rawValue == NSEvent.EventType.swipe.rawValue {
+            // Legacy swipe events (e.g. "Swipe between pages" with three fingers) are generated by the same fingers.
+            return touchesCount == Settings.fingerCount ? nil : Unmanaged.passUnretained(cgEvent)
+        }
+
         if eventType.rawValue == NSEvent.EventType.gesture.rawValue, let nsEvent = NSEvent(cgEvent: cgEvent) {
             touchEventHandler(nsEvent)
-        } else if (eventType == .tapDisabledByUserInput || eventType == .tapDisabledByTimeout) {
-            debugPrint("SwipeManager tap disabled", eventType.rawValue)
-            CGEvent.tapEnable(tap: eventTap!, enable: true)
         }
         return Unmanaged.passUnretained(cgEvent)
     }
-    
+
+    // Swiping with the gesture fingers must not scroll the content under the cursor.
+    private static func shouldBlockScroll(_ cgEvent: CGEvent) -> Bool {
+        let isMomentum = cgEvent.getIntegerValueField(.scrollWheelEventMomentumPhase) != 0
+        if isMomentum {
+            return isBlockingScroll
+        }
+        if touchesCount == Settings.fingerCount {
+            isBlockingScroll = true
+            return true
+        }
+        isBlockingScroll = false
+        return false
+    }
+
     private static func touchEventHandler(_ nsEvent: NSEvent) {
-        let touches = nsEvent.allTouches()
+        // Resting touches (e.g. a thumb resting on the trackpad) are not a part of any gesture.
+        let touches = nsEvent.allTouches().filter({ !$0.isResting })
 
         // Sometimes there are empty touch events that we have to skip. There are no empty touch events if Mission Control or App Expose use 3-finger swipes though.
         if touches.isEmpty {
             return
         }
-        let touchesCount = touches.allSatisfy({ $0.phase == .ended }) ? 0 : touches.count
+        let activeTouches = touches.filter({ $0.phase != .ended && $0.phase != .cancelled })
+        touchesCount = activeTouches.count
 
-        switch touchesCount {
-        case 2: processTwoFingers()
-        case 3: processThreeFingers(touches: touches)
-        default: processOtherFingers()
+        let fingerCount = Settings.fingerCount
+        if touchesCount == fingerCount {
+            processGestureFingers(touches: touches)
+        } else if touchesCount >= 2 && touchesCount < fingerCount {
+            processScrollFingers()
+        } else {
+            processOtherFingers()
         }
     }
 
-    private static func processTwoFingers() {
+    private static func processScrollFingers() {
         // Two fingers scrolling in App Switcher is OK but we shouldn't accumulate gesture velocity here.
         clearEventState()
     }
 
-    private static func processThreeFingers(touches: Set<NSTouch>) {
-        let velX = SwipeManager.horizontalSwipeVelocity(touches: touches)
+    private static func processGestureFingers(touches: Set<NSTouch>) {
         // We don't care about non-horizontal swipes.
-        if velX == nil {
+        guard let velX = SwipeManager.horizontalSwipeVelocity(touches: touches) else {
             return
         }
 
-        accVelX += velX!
+        accVelX += velX
         // Not enough swiping.
         if abs(accVelX) < accVelXThreshold {
             return
         }
 
-        if startTime == nil {
-            startTime = Date()
-        } else {
-            let interval = startTime!.timeIntervalSinceNow
-            if -interval < appSwitcherUIDelay {
+        if let startTime = startTime {
+            if -startTime.timeIntervalSinceNow < appSwitcherUIDelay {
                 // We skip subsequent events until App Switcher UI is shown.
                 clearEventState()
                 return
             }
+        } else {
+            startTime = Date()
         }
 
         startOrContinueGesture()
@@ -112,9 +214,9 @@ class SwipeManager {
     private static func processOtherFingers() {
         if startTime != nil {
             endGesture()
-            clearEventState()
             startTime = nil
         }
+        clearEventState()
     }
 
     private static func clearEventState() {
@@ -143,7 +245,7 @@ class SwipeManager {
             sumVelX += velX
             sumVelY += velY
 
-            if touch.phase == .ended {
+            if touch.phase == .ended || touch.phase == .cancelled {
                 prevTouchPositions.removeValue(forKey: "\(touch.identity)")
             } else {
                 prevTouchPositions["\(touch.identity)"] = touch.normalizedPosition
@@ -163,7 +265,7 @@ class SwipeManager {
 
         return velX
     }
-    
+
     private static func touchVelocity(_ touch: NSTouch) -> (Float, Float) {
         guard let prevPosition = prevTouchPositions["\(touch.identity)"] else {
             return (0, 0)
