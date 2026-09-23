@@ -175,8 +175,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func selectFingerCount(_ sender: NSMenuItem) {
-        SwipeManager.reset()
         Settings.fingerCount = sender.tag
+        SwipeManager.fingerCount = Settings.fingerCount
         updateMenuItemStates()
     }
 

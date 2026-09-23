@@ -16,6 +16,8 @@
 		58DE49CA29D09BB70025BE44 /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58DE49C929D09BB70025BE44 /* AboutView.swift */; };
 		58FBBBE529D20D3600A15F66 /* BundleInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58FBBBE429D20D3600A15F66 /* BundleInfo.swift */; };
 		58A1C0012E00000100A1C001 /* Settings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58A1C0022E00000100A1C001 /* Settings.swift */; };
+		58A1C0032E00000100A1C001 /* GestureRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58A1C0042E00000100A1C001 /* GestureRecognizer.swift */; };
+		58A1C0052E00000100A1C001 /* LaunchAtLogin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58A1C0062E00000100A1C001 /* LaunchAtLogin.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -30,6 +32,8 @@
 		58DE49C929D09BB70025BE44 /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
 		58FBBBE429D20D3600A15F66 /* BundleInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BundleInfo.swift; sourceTree = "<group>"; };
 		58A1C0022E00000100A1C001 /* Settings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Settings.swift; sourceTree = "<group>"; };
+		58A1C0042E00000100A1C001 /* GestureRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GestureRecognizer.swift; sourceTree = "<group>"; };
+		58A1C0062E00000100A1C001 /* LaunchAtLogin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLogin.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -62,6 +66,8 @@
 				58DE49C929D09BB70025BE44 /* AboutView.swift */,
 				58D3F9F32A8E14C80021A532 /* PrivacyHelper.swift */,
 				58A1C0022E00000100A1C001 /* Settings.swift */,
+				58A1C0062E00000100A1C001 /* LaunchAtLogin.swift */,
+				58A1C0042E00000100A1C001 /* GestureRecognizer.swift */,
 			);
 			path = "Touch-Tab";
 			sourceTree = "<group>";
@@ -143,6 +149,8 @@
 				58DE49CA29D09BB70025BE44 /* AboutView.swift in Sources */,
 				58D3F9F42A8E14C80021A532 /* PrivacyHelper.swift in Sources */,
 				58A1C0012E00000100A1C001 /* Settings.swift in Sources */,
+				58A1C0052E00000100A1C001 /* LaunchAtLogin.swift in Sources */,
+				58A1C0032E00000100A1C001 /* GestureRecognizer.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -271,7 +279,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 11;
+				CURRENT_PROJECT_VERSION = 12;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -284,7 +292,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.6.0;
+				MARKETING_VERSION = 1.6.1;
 				PRODUCT_BUNDLE_IDENTIFIER = "ris58h.Touch-Tab";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -302,7 +310,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 11;
+				CURRENT_PROJECT_VERSION = 12;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -315,7 +323,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.6.0;
+				MARKETING_VERSION = 1.6.1;
 				PRODUCT_BUNDLE_IDENTIFIER = "ris58h.Touch-Tab";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
