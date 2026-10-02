@@ -48,6 +48,12 @@ xcodebuild -project Touch-Tab.xcodeproj -target Touch-Tab -configuration Release
 ```
 The app is at `build/Release/Touch-Tab.app`.
 
+Without Xcode (Command Line Tools only), build the app and a `Touch-Tab.dmg` installer:
+```sh
+scripts/build-dmg.sh
+```
+The disk image is at `build/Touch-Tab.dmg`. Open it and drag `Touch-Tab.app` into `Applications`.
+
 ## Testing
 The gesture recognition, key sequences and settings are covered by unit tests:
 ```sh
@@ -57,6 +63,7 @@ Every push runs the tests, builds a universal app and checks that it launches. P
 
 ## Changes in this fork
 - 3-finger swipe no longer scrolls the content under the cursor ([ris58h#1](https://github.com/ris58h/Touch-Tab/issues/1)).
+- The window under the cursor no longer gets stuck in a half-finished scroll or "Swipe between pages" when the fingers don't land at the same time, and doesn't get Command-scroll (zoom) before App Switcher is shown.
 - Swiping right opens App Switcher reliably: Command is held for the whole gesture like a real keyboard would ([ris58h#26](https://github.com/ris58h/Touch-Tab/issues/26)).
 - Works after long sleep: the event tap is recreated on wake and monitored while running ([ris58h#28](https://github.com/ris58h/Touch-Tab/issues/28)).
 - Accessibility permission revoked or granted while running is handled without a restart.
