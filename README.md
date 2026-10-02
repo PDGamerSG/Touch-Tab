@@ -9,7 +9,7 @@ Hold after the swipe or swipe slowly to show App Switcher UI.
 This is a maintained fork of [ris58h/Touch-Tab](https://github.com/ris58h/Touch-Tab). Want to support the original author? [Buy me a coffee](https://www.buymeacoffee.com/ris58h).
 
 ## Installation
-1. Download the [latest](https://github.com/PDGamerSG/Touch-Tab/releases/latest/download/Touch-Tab.dmg) `Touch-Tab.dmg` from [Releases](https://github.com/PDGamerSG/Touch-Tab/releases) page (`Touch-Tab.zip` is there too).
+1. Download the [latest](https://github.com/PDGamerSG/Touch-Tab/releases/latest/download/Touch-Tab.dmg) `Touch-Tab.dmg` from [Releases](https://github.com/PDGamerSG/Touch-Tab/releases) page.
 2. Open the disk image and drag `Touch-Tab.app` into the `Applications` folder.
 3. The app is ad-hoc signed so when you run the app macOS will warn you: `"Touch-Tab" can’t be opened because Apple cannot check it for malicious software`. Right-click the app and click `Open`, a 
 pop-up will appear, click `Open` again.
@@ -59,7 +59,7 @@ The gesture recognition, key sequences and settings are covered by unit tests:
 ```sh
 swift test
 ```
-Every push runs the tests, builds a universal app and checks that it launches. Pushing a `v*` tag also publishes a release with `Touch-Tab.dmg` and `Touch-Tab.zip`.
+Every push runs the tests, builds a universal app and checks that it launches. Pushing a `v*` tag also publishes a release with `Touch-Tab.dmg`.
 
 ## Changes in this fork
 - 3-finger swipe no longer scrolls the content under the cursor ([ris58h#1](https://github.com/ris58h/Touch-Tab/issues/1)).
