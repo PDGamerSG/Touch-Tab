@@ -55,14 +55,21 @@ jobs:
           codesign --verify --deep --strict "$APP"
           lipo -info "$APP/Contents/MacOS/Touch-Tab"
           ditto -c -k --sequesterRsrc --keepParent "$APP" Touch-Tab.zip
+          # Disk image with a shortcut to Applications so the app can be dragged there.
+          mkdir dmg
+          cp -R "$APP" dmg/
+          ln -s /Applications dmg/Applications
+          hdiutil create -volname Touch-Tab -srcfolder dmg -fs HFS+ -format UDZO Touch-Tab.dmg
 
       - uses: actions/upload-artifact@v4
         with:
           name: Touch-Tab
-          path: Touch-Tab.zip
+          path: |
+            Touch-Tab.zip
+            Touch-Tab.dmg
 
       - name: Release
         if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" Touch-Tab.zip --title "$GITHUB_REF_NAME" --generate-notes
+        run: gh release create "$GITHUB_REF_NAME" Touch-Tab.dmg Touch-Tab.zip --title "$GITHUB_REF_NAME" --generate-notes
