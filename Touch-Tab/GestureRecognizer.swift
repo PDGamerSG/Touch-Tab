@@ -56,8 +56,15 @@ enum SwipeEvent: Equatable {
 }
 
 // Turns a stream of trackpad touches into App Switcher gestures.
+// Works like the 3-finger swipe on Windows: the first swipe opens App Switcher, then the selection follows the fingers
+// (sliding right selects the next app, sliding back selects the previous one) and lifting the fingers switches to the selected app.
 class GestureRecognizer {
+    // Horizontal distance (in trackpad widths) that opens App Switcher.
     static let accVelXThreshold: Float = 0.07
+    // Horizontal distance between two apps in App Switcher.
+    static let stepDistance: Float = 0.12
+    // How far the fingers have to slide back past a step before the selection goes back, so fingers resting on a step boundary don't flicker.
+    static let hysteresis: Float = 0.04
     // TODO: figure out the real value of the delay.
     static let appSwitcherUIDelay: TimeInterval = 0.2
 
@@ -77,6 +84,12 @@ class GestureRecognizer {
     private var prevTouchPositions: [String: CGPoint] = [:]
     // Gesture state. Gesture may consists of multiple events.
     private var startTime: TimeInterval? = nil
+    // Horizontal distance the fingers moved since the gesture started.
+    private var offset: Float = 0
+    // Selected app relative to the current one: positive to the right, negative to the left.
+    private var position = 0
+    // Set after the gesture ended until all the fingers are lifted, so the remaining fingers neither scroll nor start a new gesture.
+    private var isLiftingFingers = false
     // Set when a scroll sequence was blocked so its momentum is blocked as well.
     private var isBlockingScroll = false
     // Set while the window under the cursor is in the middle of a scroll sequence.
@@ -113,7 +126,7 @@ class GestureRecognizer {
     }
 
     private func shouldBlockScroll(time: TimeInterval) -> Bool {
-        if touchesCount == fingerCount {
+        if touchesCount == fingerCount || (isGestureActive && touchesCount > fingerCount) || isLiftingFingers {
             return true
         }
         // Command is held while the gesture is active. Until App Switcher UI is shown, scrolling would reach the window under the cursor as Command-scroll (e.g. zoom).
@@ -131,9 +144,10 @@ class GestureRecognizer {
     // Finishes the current gesture (if any) and forgets all the touches.
     func reset() -> SwipeEvent? {
         let event: SwipeEvent? = isGestureActive ? .end : nil
-        startTime = nil
+        clearGestureState()
         touchesCount = 0
         isBlockingScroll = false
+        isLiftingFingers = false
         clearEventState()
         return event
     }
@@ -148,10 +162,18 @@ class GestureRecognizer {
         let touches = allTouches.filter({ !$0.isResting })
         touchesCount = touches.filter({ $0.isActive }).count
 
+        if isLiftingFingers {
+            if touchesCount == 0 {
+                isLiftingFingers = false
+            }
+            clearEventState()
+            return nil
+        }
+
         if touchesCount == fingerCount {
             return processGestureFingers(touches: touches, time: time)
-        } else if touchesCount >= 2 && touchesCount < fingerCount {
-            // Two fingers scrolling in App Switcher is OK but we shouldn't accumulate gesture velocity here.
+        } else if touchesCount > fingerCount && isGestureActive {
+            // A palm or another finger brushing the trackpad mid-swipe must not end the gesture.
             clearEventState()
             return nil
         } else {
@@ -160,37 +182,58 @@ class GestureRecognizer {
     }
 
     private func processGestureFingers(touches: [TouchSample], time: TimeInterval) -> SwipeEvent? {
-        // We don't care about non-horizontal swipes.
-        guard let velX = horizontalSwipeVelocity(touches: touches) else {
-            return nil
-        }
+        let (velX, isHorizontalSwipe) = swipeVelocity(touches: touches)
 
-        accVelX += velX
-        // Not enough swiping.
-        if abs(accVelX) < GestureRecognizer.accVelXThreshold {
-            return nil
-        }
-
-        if let startTime = startTime {
-            if time - startTime < GestureRecognizer.appSwitcherUIDelay {
-                // We skip subsequent events until App Switcher UI is shown.
-                clearEventState()
+        if !isGestureActive {
+            // We don't care about non-horizontal swipes.
+            if !isHorizontalSwipe {
                 return nil
             }
-        } else {
+            accVelX += velX
+            // Not enough swiping.
+            if abs(accVelX) < GestureRecognizer.accVelXThreshold {
+                return nil
+            }
             startTime = time
+            offset = accVelX
+            position = accVelX < 0 ? -1 : 1
+            return .startOrContinue(accVelX < 0 ? .left : .right)
         }
 
-        let direction: SwipeEvent.Direction = accVelX < 0 ? .left : .right
-        clearEventState()
-        return .startOrContinue(direction)
+        // The selection follows the fingers.
+        offset += velX
+        let rightEdge = position >= 0 ? GestureRecognizer.boundary(position + 1) : GestureRecognizer.boundary(position) + GestureRecognizer.hysteresis
+        let leftEdge = position <= 0 ? GestureRecognizer.boundary(position - 1) : GestureRecognizer.boundary(position) - GestureRecognizer.hysteresis
+        if offset >= rightEdge {
+            position += 1
+            return .startOrContinue(.right)
+        }
+        if offset <= leftEdge {
+            position -= 1
+            return .startOrContinue(.left)
+        }
+        return nil
+    }
+
+    // Offset where the selection moves onto the given step (non-zero) from the step next to it towards the current app.
+    private static func boundary(_ step: Int) -> Float {
+        let distance = accVelXThreshold + Float(abs(step) - 1) * stepDistance
+        return step > 0 ? distance : -distance
     }
 
     private func processOtherFingers() -> SwipeEvent? {
         let event: SwipeEvent? = isGestureActive ? .end : nil
-        startTime = nil
+        // Lifting the fingers selects the app. The fingers rarely leave the trackpad at the same time, so wait for all of them.
+        isLiftingFingers = isGestureActive && touchesCount > 0
+        clearGestureState()
         clearEventState()
         return event
+    }
+
+    private func clearGestureState() {
+        startTime = nil
+        offset = 0
+        position = 0
     }
 
     private func clearEventState() {
@@ -198,7 +241,8 @@ class GestureRecognizer {
         prevTouchPositions.removeAll()
     }
 
-    private func horizontalSwipeVelocity(touches: [TouchSample]) -> Float? {
+    // Average horizontal velocity of the fingers and whether they swipe horizontally in the same direction.
+    private func swipeVelocity(touches: [TouchSample]) -> (Float, Bool) {
         var allRight = true
         var allLeft = true
         var sumVelX = Float(0)
@@ -216,19 +260,11 @@ class GestureRecognizer {
                 prevTouchPositions.removeValue(forKey: touch.id)
             }
         }
-        // All fingers should move in the same direction.
-        if !allRight && !allLeft {
-            return nil
-        }
-
         let velX = sumVelX / Float(touches.count)
         let velY = sumVelY / Float(touches.count)
-        // Only horizontal swipes are interesting.
-        if abs(velX) <= abs(velY) {
-            return nil
-        }
-
-        return velX
+        // All fingers should move in the same direction and only horizontal swipes are interesting.
+        let isHorizontalSwipe = (allRight || allLeft) && abs(velX) > abs(velY)
+        return (velX, isHorizontalSwipe)
     }
 
     private func touchVelocity(_ touch: TouchSample) -> (Float, Float) {

@@ -30,7 +30,9 @@ let package = Package(
         .testTarget(
             name: "TouchTabCoreTests",
             dependencies: ["TouchTabCore"],
-            path: "Tests/TouchTabCoreTests"
+            path: "Tests/TouchTabCoreTests",
+            // Recorded trackpad traces are read straight from the source tree.
+            exclude: ["Fixtures"]
         ),
     ]
 )

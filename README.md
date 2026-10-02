@@ -3,8 +3,7 @@
 ![Touch-Tab AppSwitcher](https://user-images.githubusercontent.com/511242/185958284-e0f962aa-3f88-4d95-9176-3f3fe49a24c8.gif)
 
 Switch apps with trackpad on macOS.
-Use 3-fingers swipe right or 3-fingers swipe left to switch between apps.
-Hold after the swipe or swipe slowly to show App Switcher UI.
+Use 3-fingers swipe right or 3-fingers swipe left to switch between apps, like the 3-finger swipe on Windows.
 
 This is a maintained fork of [ris58h/Touch-Tab](https://github.com/ris58h/Touch-Tab). Want to support the original author? [Buy me a coffee](https://www.buymeacoffee.com/ris58h).
 
@@ -18,7 +17,9 @@ pop-up will appear, click `Open` again.
 
 ## Usage
 - Use 3-fingers swipe right or 3-fingers swipe left to switch between apps.
-- Hold after the swipe or swipe slowly to show App Switcher UI. Pro tip: you can use 2-fingers scroll to switch apps in App Switcher faster.
+- A short swipe switches to the previous app.
+- Keep the fingers on the trackpad to pick another app: App Switcher selection follows the fingers, slide right for the next app, slide back for the previous one. Holding the fingers still keeps the selection.
+- Lift the fingers to switch to the selected app.
 
 ### Settings
 All settings are in the status bar menu:
@@ -62,6 +63,9 @@ swift test
 Every push runs the tests, builds a universal app and checks that it launches. Pushing a `v*` tag also publishes a release with `Touch-Tab.dmg`.
 
 ## Changes in this fork
+- Windows-like swiping: App Switcher selection follows the fingers in both directions, one app per fixed distance, so it no longer jumps around when the fingers slide back or jitter.
+- Lifting the fingers switches right away, App Switcher no longer stays open while the last fingers leave the trackpad.
+- A palm brushing the trackpad mid-swipe doesn't end the gesture.
 - 3-finger swipe no longer scrolls the content under the cursor ([ris58h#1](https://github.com/ris58h/Touch-Tab/issues/1)).
 - The window under the cursor no longer gets stuck in a half-finished scroll or "Swipe between pages" when the fingers don't land at the same time, and doesn't get Command-scroll (zoom) before App Switcher is shown.
 - Swiping right opens App Switcher reliably: Command is held for the whole gesture like a real keyboard would ([ris58h#26](https://github.com/ris58h/Touch-Tab/issues/26)).

@@ -121,24 +121,35 @@ final class GestureRecognizerTests: XCTestCase {
         XCTAssertEqual(trackpad.events, [])
     }
 
-    func testFastSwipeSwitchesOnlyOnceUntilUIIsShown() {
+    func testSelectionFollowsSwipeDistance() {
         let trackpad = Trackpad()
         trackpad.put(3)
-        // 10 frames take 0.1s which is less than the App Switcher UI delay.
-        trackpad.move(dx: 0.05, frames: 10)
-        XCTAssertEqual(trackpad.events, [.startOrContinue(.right)])
+        // 0.39 crosses the steps at 0.07, 0.19 and 0.31.
+        trackpad.move(dx: 0.03, frames: 13)
+        trackpad.lift()
+        XCTAssertEqual(trackpad.events, [.startOrContinue(.right), .startOrContinue(.right), .startOrContinue(.right), .end])
     }
 
-    func testLongSwipeSwitchesMultipleApps() {
+    func testFastSwipeFollowsDistanceToo() {
         let trackpad = Trackpad()
         trackpad.put(3)
-        trackpad.move(dx: 0.03, frames: 4)
-        trackpad.wait(GestureRecognizer.appSwitcherUIDelay)
+        trackpad.move(dx: -0.1, frames: 2)
+        XCTAssertEqual(trackpad.events, [.startOrContinue(.left), .startOrContinue(.left)])
+    }
+
+    func testSlidingBackSelectsPreviousApps() {
+        let trackpad = Trackpad()
+        trackpad.put(3)
         trackpad.move(dx: 0.03, frames: 8)
+        XCTAssertEqual(trackpad.events, [.startOrContinue(.right), .startOrContinue(.right)])
+        // Back to the start selects the current app again, further back goes the other way.
+        trackpad.move(dx: -0.03, frames: 12)
         trackpad.lift()
-        XCTAssertGreaterThan(trackpad.events.count, 3)
-        XCTAssertEqual(trackpad.events.last, .end)
-        XCTAssertTrue(trackpad.events.dropLast().allSatisfy { $0 == .startOrContinue(.right) })
+        XCTAssertEqual(trackpad.events, [
+            .startOrContinue(.right), .startOrContinue(.right),
+            .startOrContinue(.left), .startOrContinue(.left), .startOrContinue(.left),
+            .end,
+        ])
     }
 
     func testChangingDirectionWithinOneGesture() {
@@ -149,6 +160,65 @@ final class GestureRecognizerTests: XCTestCase {
         trackpad.move(dx: -0.03, frames: 4)
         trackpad.lift()
         XCTAssertEqual(trackpad.events, [.startOrContinue(.right), .startOrContinue(.left), .end])
+    }
+
+    func testHoldingStillKeepsTheSelection() {
+        let trackpad = Trackpad()
+        trackpad.put(3)
+        trackpad.move(dx: 0.03, frames: 4)
+        trackpad.wait(2)
+        trackpad.move(dx: 0, frames: 100)
+        XCTAssertEqual(trackpad.events, [.startOrContinue(.right)])
+        XCTAssertTrue(trackpad.recognizer.isGestureActive)
+    }
+
+    func testJitterOnStepBoundaryDoesNotFlicker() {
+        let trackpad = Trackpad()
+        trackpad.put(3)
+        // Right on the second step.
+        trackpad.move(dx: 0.02, frames: 10)
+        XCTAssertEqual(trackpad.events, [.startOrContinue(.right), .startOrContinue(.right)])
+        for i in 0..<200 {
+            trackpad.move(dx: i % 2 == 0 ? -0.02 : 0.02)
+        }
+        XCTAssertEqual(trackpad.events, [.startOrContinue(.right), .startOrContinue(.right)])
+    }
+
+    func testPalmBrushingTheTrackpadDoesNotEndTheGesture() {
+        let trackpad = Trackpad()
+        trackpad.put(3)
+        trackpad.move(dx: 0.03, frames: 4)
+        trackpad.put(1)
+        trackpad.move(dx: 0.01, frames: 3)
+        trackpad.lift(1)
+        XCTAssertTrue(trackpad.recognizer.isGestureActive)
+        XCTAssertEqual(trackpad.scroll(), .block)
+        trackpad.lift()
+        XCTAssertEqual(trackpad.events, [.startOrContinue(.right), .end])
+    }
+
+    func testRecordedSwipes() throws {
+        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("Fixtures/swipes.trace")
+        let recognizer = GestureRecognizer(fingerCount: 3)
+        var events: [SwipeEvent] = []
+        for line in try String(contentsOf: url, encoding: .utf8).split(separator: "\n") where line.hasPrefix("G ") {
+            let fields = line.split(separator: " ")
+            let touches = fields.dropFirst(2).map { field -> TouchSample in
+                let parts = field.split(separator: ":")
+                let phases: [Substring: TouchSample.Phase] = ["B": .began, "M": .moved, "S": .stationary, "E": .ended, "C": .cancelled]
+                return TouchSample(id: String(parts[0]), position: CGPoint(x: Double(parts[2])!, y: Double(parts[3])!), phase: phases[parts[1]]!, isResting: parts[4] == "1")
+            }
+            if let event = recognizer.process(touches: touches, time: Double(fields[1])!) {
+                events.append(event)
+            }
+        }
+        let right = SwipeEvent.startOrContinue(.right)
+        let left = SwipeEvent.startOrContinue(.left)
+        XCTAssertEqual(events, [
+            right, left, right, right, right, left, left, right, right, .end,
+            right, right, left, right, right, right, .end,
+            left, left, left, .end,
+        ])
     }
 
     func testVerticalSwipeIsIgnored() {
@@ -196,15 +266,19 @@ final class GestureRecognizerTests: XCTestCase {
         XCTAssertEqual(trackpad.events, [.startOrContinue(.right), .end])
     }
 
-    func testLiftingOneFingerKeepsAppSwitcherOpenForTwoFingerScrolling() {
+    func testLiftingFingersOneByOneSelectsTheApp() {
         let trackpad = Trackpad()
         trackpad.put(3)
         trackpad.move(dx: 0.02, frames: 5)
         trackpad.lift(1)
+        XCTAssertEqual(trackpad.events, [.startOrContinue(.right), .end])
+        XCTAssertFalse(trackpad.recognizer.isGestureActive)
+        // The remaining fingers neither scroll nor switch.
         trackpad.move(dx: 0.05, frames: 10)
-        XCTAssertEqual(trackpad.events, [.startOrContinue(.right)])
+        XCTAssertEqual(trackpad.scroll(), .block)
         trackpad.lift()
         XCTAssertEqual(trackpad.events, [.startOrContinue(.right), .end])
+        XCTAssertEqual(trackpad.scroll(.began), .pass)
     }
 
     func testRestingThumbIsIgnored() {
@@ -297,21 +371,11 @@ final class GestureRecognizerTests: XCTestCase {
         XCTAssertEqual(trackpad.scroll(momentum: true), .pass)
     }
 
-    func testTwoFingerScrollInAppSwitcherIsNotBlocked() {
+    func testScrollWhileCommandIsHeldIsBlocked() {
         let trackpad = Trackpad()
         trackpad.put(3)
         trackpad.move(dx: 0.02, frames: 5)
-        trackpad.wait(GestureRecognizer.appSwitcherUIDelay)
-        trackpad.lift(1)
-        XCTAssertTrue(trackpad.recognizer.isGestureActive)
-        XCTAssertEqual(trackpad.scroll(), .pass)
-    }
-
-    func testScrollWhileCommandIsHeldBeforeAppSwitcherUIIsBlocked() {
-        let trackpad = Trackpad()
-        trackpad.put(3)
-        trackpad.move(dx: 0.02, frames: 5)
-        trackpad.lift(1)
+        trackpad.put(1)
         XCTAssertTrue(trackpad.recognizer.isGestureActive)
         XCTAssertEqual(trackpad.scroll(.began), .block)
         trackpad.lift()
