@@ -121,7 +121,17 @@ class SwipeManager {
 
         if eventType == .scrollWheel {
             let isMomentum = cgEvent.getIntegerValueField(.scrollWheelEventMomentumPhase) != 0
-            return recognizer.shouldBlockScroll(isMomentum: isMomentum) ? nil : Unmanaged.passUnretained(cgEvent)
+            let phase = scrollPhase(cgEvent.getIntegerValueField(.scrollWheelEventScrollPhase))
+            let time = NSEvent(cgEvent: cgEvent)?.timestamp ?? ProcessInfo.processInfo.systemUptime
+            switch recognizer.scrollAction(phase: phase, isMomentum: isMomentum, time: time) {
+            case .pass:
+                return Unmanaged.passUnretained(cgEvent)
+            case .block:
+                return nil
+            case .end:
+                endScrollSequence(cgEvent)
+                return Unmanaged.passUnretained(cgEvent)
+            }
         }
 
         if eventType.rawValue == NSEvent.EventType.swipe.rawValue {
@@ -133,6 +143,30 @@ class SwipeManager {
             listener(recognizer.process(touches: touches, time: nsEvent.timestamp))
         }
         return Unmanaged.passUnretained(cgEvent)
+    }
+
+    // Values of kCGScrollWheelEventScrollPhase.
+    private static func scrollPhase(_ value: Int64) -> ScrollPhase {
+        switch value {
+        case 1: return .began
+        case 2: return .changed
+        case 4: return .ended
+        case 8: return .cancelled
+        case 128: return .mayBegin
+        default: return .none
+        }
+    }
+
+    // Turns the event into the end of the scroll sequence without any scrolling, so the window under the cursor doesn't get stuck in the middle of a scroll or a "Swipe between pages".
+    private static func endScrollSequence(_ cgEvent: CGEvent) {
+        cgEvent.setIntegerValueField(.scrollWheelEventScrollPhase, value: 4)
+        for field: CGEventField in [
+            .scrollWheelEventDeltaAxis1, .scrollWheelEventDeltaAxis2,
+            .scrollWheelEventPointDeltaAxis1, .scrollWheelEventPointDeltaAxis2,
+            .scrollWheelEventFixedPtDeltaAxis1, .scrollWheelEventFixedPtDeltaAxis2,
+        ] {
+            cgEvent.setIntegerValueField(field, value: 0)
+        }
     }
 
     private static func touchSample(_ touch: NSTouch) -> TouchSample {

@@ -3,7 +3,7 @@ import SwiftUI
 struct AboutView: View {
     var body: some View {
         VStack(alignment: .center, spacing: 16) {
-            Image(nsImage: NSImage(named: BundleInfo.iconName()) ?? NSImage())
+            Image(nsImage: NSApp.applicationIconImage ?? NSImage())
                 .resizable()
                 .frame(width: 64, height: 64)
             Text(BundleInfo.displayName())

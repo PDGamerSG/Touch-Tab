@@ -5,10 +5,6 @@ class BundleInfo {
         return Bundle.main.infoDictionary?[key] as? String ?? ""
     }
 
-    static func iconName() -> String {
-        return bundleInfo("CFBundleIconName")
-    }
-    
     static func displayName() -> String {
         return bundleInfo("CFBundleDisplayName")
     }

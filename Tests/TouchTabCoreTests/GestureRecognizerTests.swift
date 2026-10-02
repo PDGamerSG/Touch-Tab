@@ -72,6 +72,10 @@ private class Trackpad {
         send(touches)
     }
 
+    func scroll(_ phase: ScrollPhase = .changed, momentum: Bool = false) -> ScrollAction {
+        return recognizer.scrollAction(phase: phase, isMomentum: momentum, time: time)
+    }
+
     func send(_ touches: [TouchSample]) {
         time += frameInterval
         if let event = recognizer.process(touches: touches, time: time) {
@@ -259,62 +263,104 @@ final class GestureRecognizerTests: XCTestCase {
     func testScrollIsBlockedWhileGestureFingersAreDown() {
         let trackpad = Trackpad()
         trackpad.put(3)
-        XCTAssertTrue(trackpad.recognizer.shouldBlockScroll(isMomentum: false))
+        XCTAssertEqual(trackpad.scroll(), .block)
         XCTAssertTrue(trackpad.recognizer.shouldBlockSwipe)
         trackpad.move(dx: 0.02, frames: 5)
-        XCTAssertTrue(trackpad.recognizer.shouldBlockScroll(isMomentum: false))
+        XCTAssertEqual(trackpad.scroll(), .block)
     }
 
     func testMomentumAfterBlockedScrollIsBlocked() {
         let trackpad = Trackpad()
         trackpad.put(3)
-        XCTAssertTrue(trackpad.recognizer.shouldBlockScroll(isMomentum: false))
+        XCTAssertEqual(trackpad.scroll(), .block)
         trackpad.lift()
-        XCTAssertTrue(trackpad.recognizer.shouldBlockScroll(isMomentum: true))
+        XCTAssertEqual(trackpad.scroll(momentum: true), .block)
         XCTAssertFalse(trackpad.recognizer.shouldBlockSwipe)
     }
 
     func testTwoFingerScrollIsNotBlocked() {
         let trackpad = Trackpad()
         trackpad.put(2)
-        XCTAssertFalse(trackpad.recognizer.shouldBlockScroll(isMomentum: false))
+        XCTAssertEqual(trackpad.scroll(), .pass)
         XCTAssertFalse(trackpad.recognizer.shouldBlockSwipe)
         trackpad.lift()
-        XCTAssertFalse(trackpad.recognizer.shouldBlockScroll(isMomentum: true))
+        XCTAssertEqual(trackpad.scroll(momentum: true), .pass)
     }
 
     func testNewScrollAfterBlockedOneIsNotBlocked() {
         let trackpad = Trackpad()
         trackpad.put(3)
-        XCTAssertTrue(trackpad.recognizer.shouldBlockScroll(isMomentum: false))
+        XCTAssertEqual(trackpad.scroll(), .block)
         trackpad.lift()
         trackpad.put(2)
-        XCTAssertFalse(trackpad.recognizer.shouldBlockScroll(isMomentum: false))
-        XCTAssertFalse(trackpad.recognizer.shouldBlockScroll(isMomentum: true))
+        XCTAssertEqual(trackpad.scroll(), .pass)
+        XCTAssertEqual(trackpad.scroll(momentum: true), .pass)
     }
 
     func testTwoFingerScrollInAppSwitcherIsNotBlocked() {
         let trackpad = Trackpad()
         trackpad.put(3)
         trackpad.move(dx: 0.02, frames: 5)
+        trackpad.wait(GestureRecognizer.appSwitcherUIDelay)
         trackpad.lift(1)
         XCTAssertTrue(trackpad.recognizer.isGestureActive)
-        XCTAssertFalse(trackpad.recognizer.shouldBlockScroll(isMomentum: false))
+        XCTAssertEqual(trackpad.scroll(), .pass)
+    }
+
+    func testScrollWhileCommandIsHeldBeforeAppSwitcherUIIsBlocked() {
+        let trackpad = Trackpad()
+        trackpad.put(3)
+        trackpad.move(dx: 0.02, frames: 5)
+        trackpad.lift(1)
+        XCTAssertTrue(trackpad.recognizer.isGestureActive)
+        XCTAssertEqual(trackpad.scroll(.began), .block)
+        trackpad.lift()
+        XCTAssertEqual(trackpad.scroll(.began), .pass)
+    }
+
+    func testScrollStartedBeforeGestureFingersIsEnded() {
+        let trackpad = Trackpad()
+        // The fingers don't land at the same time, so two of them may start a scroll.
+        trackpad.put(2)
+        XCTAssertEqual(trackpad.scroll(.began), .pass)
+        XCTAssertEqual(trackpad.scroll(.changed), .pass)
+        trackpad.put(1)
+        XCTAssertEqual(trackpad.scroll(.changed), .end)
+        XCTAssertEqual(trackpad.scroll(.changed), .block)
+        XCTAssertEqual(trackpad.scroll(momentum: true), .block)
+    }
+
+    func testFinishedScrollIsNotEndedAgain() {
+        let trackpad = Trackpad()
+        trackpad.put(2)
+        XCTAssertEqual(trackpad.scroll(.began), .pass)
+        XCTAssertEqual(trackpad.scroll(.ended), .pass)
+        trackpad.put(1)
+        XCTAssertEqual(trackpad.scroll(.began), .block)
+    }
+
+    func testRestingThumbAloneEndsGesture() {
+        let trackpad = Trackpad()
+        trackpad.put(4, resting: 1)
+        trackpad.move(dx: 0.02, frames: 5)
+        // The frame where the swiping fingers end is missing, only the thumb is reported.
+        trackpad.send([TouchSample(id: "finger0", position: CGPoint(x: 0.4, y: 0.5), phase: .stationary, isResting: true)])
+        XCTAssertEqual(trackpad.events, [.startOrContinue(.right), .end])
     }
 
     func testScrollIsNotBlockedAfterReset() {
         let trackpad = Trackpad()
         trackpad.put(3)
-        XCTAssertTrue(trackpad.recognizer.shouldBlockScroll(isMomentum: false))
+        XCTAssertEqual(trackpad.scroll(), .block)
         _ = trackpad.recognizer.reset()
-        XCTAssertFalse(trackpad.recognizer.shouldBlockScroll(isMomentum: true))
-        XCTAssertFalse(trackpad.recognizer.shouldBlockScroll(isMomentum: false))
+        XCTAssertEqual(trackpad.scroll(momentum: true), .pass)
+        XCTAssertEqual(trackpad.scroll(), .pass)
     }
 
     func testChangingFingerCountForgetsTouches() {
         let trackpad = Trackpad()
         trackpad.put(3)
         trackpad.recognizer.fingerCount = 4
-        XCTAssertFalse(trackpad.recognizer.shouldBlockScroll(isMomentum: false))
+        XCTAssertEqual(trackpad.scroll(), .pass)
     }
 }
